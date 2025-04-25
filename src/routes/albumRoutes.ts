@@ -1,0 +1,31 @@
+import express from 'express';
+import {
+  createAlbum,
+  getAlbums,
+  getAlbumById,
+  updateAlbum,
+  deleteAlbum,
+  addAlbumImage,
+  removeAlbumImage,
+} from '../controllers/albumController';
+
+const router = express.Router();
+
+// Album routes
+router.route('/')
+  .post(createAlbum)
+  .get(getAlbums);
+
+router.route('/:id')
+  .get(getAlbumById)
+  .put(updateAlbum)
+  .delete(deleteAlbum);
+
+// Album image routes
+router.route('/:id/images')
+  .post(addAlbumImage);
+
+router.route('/:id/images/:imageId')
+  .delete(removeAlbumImage);
+
+export default router; 
