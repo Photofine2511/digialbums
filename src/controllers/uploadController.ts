@@ -57,7 +57,7 @@ export const uploadMultipleImages = asyncHandler(async (req: FileRequest, res: R
   
   // Check the structure of req.files to understand how multer is providing the files
   console.log('req.files type:', typeof req.files);
-  console.log('req.files structure:', JSON.stringify(req.files).slice(0, 200) + '...');
+  console.log('req.files structure:', JSON.stringify(req.files, null, 2));
   
   // Extract files from request properly depending on the structure
   let files: Express.Multer.File[];
@@ -88,31 +88,64 @@ export const uploadMultipleImages = asyncHandler(async (req: FileRequest, res: R
     const uploadResults = [];
 
     for (const file of files) {
-      console.log(`Processing file: ${file.originalname} (${file.size} bytes)`);
-      const filePath = file.path;
-      
-      // Generate a unique ID for each image
-      const imageId = uuidv4();
-      
-      // Upload the image to Cloudinary
-      console.log(`Uploading to Cloudinary: ${filePath}`);
-      const result = await uploadToCloudinary(filePath, 'album-spark');
-      console.log(`Cloudinary result received for ${file.originalname}`);
-      
-      // Delete the file from the server after uploading to Cloudinary
-      fs.unlinkSync(filePath);
-      
-      const imageResult = {
-        id: imageId,
-        url: result.secure_url,
-        publicId: result.public_id,
-      };
-      
-      console.log(`Successfully processed image: ${file.originalname}`);
-      uploadResults.push(imageResult);
+      try {
+        console.log(`Processing file: ${file.originalname} (${file.size} bytes)`);
+        const filePath = file.path;
+        
+        if (!fs.existsSync(filePath)) {
+          console.error(`File does not exist at path: ${filePath}`);
+          throw new Error(`File not found: ${file.originalname}`);
+        }
+        
+        // Generate a unique ID for each image
+        const imageId = uuidv4();
+        
+        // Upload the image to Cloudinary with detailed error handling
+        console.log(`Uploading to Cloudinary: ${filePath}`);
+        let result;
+        try {
+          result = await uploadToCloudinary(filePath, 'album-spark');
+          console.log(`Cloudinary result received for ${file.originalname}:`, result.secure_url);
+        } catch (cloudinaryError) {
+          console.error(`Cloudinary upload failed for ${file.originalname}:`, cloudinaryError);
+          throw new Error(`Cloudinary upload failed: ${cloudinaryError instanceof Error ? cloudinaryError.message : 'Unknown error'}`);
+        }
+        
+        // Delete the file from the server after uploading to Cloudinary
+        try {
+          fs.unlinkSync(filePath);
+        } catch (unlinkError) {
+          console.error(`Could not delete temporary file ${filePath}:`, unlinkError);
+          // Continue processing even if we can't delete the temp file
+        }
+        
+        const imageResult = {
+          id: imageId,
+          url: result.secure_url,
+          publicId: result.public_id,
+        };
+        
+        console.log(`Successfully processed image: ${file.originalname}`);
+        uploadResults.push(imageResult);
+      } catch (fileError) {
+        console.error(`Error processing individual file ${file.originalname}:`, fileError);
+        // Continue processing other files instead of failing the entire batch
+        // Clean up this file if it exists
+        if (file.path && fs.existsSync(file.path)) {
+          try {
+            fs.unlinkSync(file.path);
+          } catch (e) {
+            console.error(`Failed to clean up file ${file.path}:`, e);
+          }
+        }
+      }
     }
     
-    console.log(`Successfully processed ${uploadResults.length} images`);
+    if (uploadResults.length === 0) {
+      throw new Error('All image uploads failed');
+    }
+    
+    console.log(`Successfully processed ${uploadResults.length} out of ${files.length} images`);
     console.log('Upload results:', JSON.stringify(uploadResults));
     res.status(201).json(uploadResults);
   } catch (error) {
@@ -123,12 +156,16 @@ export const uploadMultipleImages = asyncHandler(async (req: FileRequest, res: R
       for (const file of files) {
         if (file.path && fs.existsSync(file.path)) {
           console.log(`Cleaning up temporary file: ${file.path}`);
-          fs.unlinkSync(file.path);
+          try {
+            fs.unlinkSync(file.path);
+          } catch (e) {
+            console.error(`Failed to clean up file ${file.path}:`, e);
+          }
         }
       }
     }
     
     res.status(500);
-    throw new Error('Image upload failed');
+    throw new Error(error instanceof Error ? error.message : 'Image upload failed');
   }
 }); 
