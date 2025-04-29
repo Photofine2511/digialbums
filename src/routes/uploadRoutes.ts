@@ -71,7 +71,7 @@ router.post('/', upload.single('image'), handleMulterError, (req: Request, res: 
 });
 
 // Route for uploading multiple images
-router.post('/multiple', upload.array('images', 20), handleMulterError, (req: Request, res: Response, next: NextFunction) => {
+router.post('/multiple', upload.array('images', 30), handleMulterError, (req: Request, res: Response, next: NextFunction) => {
   console.log('Multiple image upload endpoint hit');
   const files = req.files as Express.Multer.File[];
   console.log(`Received ${files ? files.length : 0} files in the multiple upload route`);
