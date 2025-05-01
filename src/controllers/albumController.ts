@@ -2,21 +2,32 @@ import { Request, Response } from 'express';
 import asyncHandler from 'express-async-handler';
 import Album, { IAlbum } from '../models/albumModel';
 import { deleteFromCloudinary } from '../config/cloudinary';
+import bcrypt from 'bcryptjs';
 
 // @desc    Create a new album
 // @route   POST /api/albums
 // @access  Public
 export const createAlbum = asyncHandler(async (req: Request, res: Response) => {
-  const { title, photographerName, coverImage, coverImagePublicId, images } = req.body;
+  const { title, photographerName, coverImage, coverImagePublicId, images, password } = req.body;
 
-  // Create a new album
-  const album = await Album.create({
+  // Create album data
+  const albumData: any = {
     title,
     photographerName,
     coverImage,
     coverImagePublicId,
     images,
-  });
+  };
+
+  // Handle password protection
+  if (password) {
+    const salt = await bcrypt.genSalt(10);
+    albumData.password = await bcrypt.hash(password, salt);
+    albumData.isPasswordProtected = true;
+  }
+
+  // Create a new album
+  const album = await Album.create(albumData);
 
   if (album) {
     res.status(201).json(album);
@@ -52,19 +63,75 @@ export const getAlbumById = asyncHandler(async (req: Request, res: Response) => 
 // @route   PUT /api/albums/:id
 // @access  Public
 export const updateAlbum = asyncHandler(async (req: Request, res: Response) => {
-  const { title, photographerName } = req.body;
+  const { title, photographerName, password, removePassword } = req.body;
 
-  const album = await Album.findById(req.params.id);
+  const album = await Album.findById(req.params.id).select('+password');
 
   if (album) {
     album.title = title || album.title;
     album.photographerName = photographerName || album.photographerName;
+
+    // Handle password protection
+    if (password) {
+      const salt = await bcrypt.genSalt(10);
+      album.password = await bcrypt.hash(password, salt);
+      album.isPasswordProtected = true;
+    } else if (removePassword) {
+      album.password = undefined;
+      album.isPasswordProtected = false;
+    }
 
     const updatedAlbum = await album.save();
     res.json(updatedAlbum);
   } else {
     res.status(404);
     throw new Error('Album not found');
+  }
+});
+
+// @desc    Verify album password
+// @route   POST /api/albums/:id/verify-password
+// @access  Public
+export const verifyAlbumPassword = asyncHandler(async (req: Request, res: Response) => {
+  const { password } = req.body;
+  
+  const album = await Album.findById(req.params.id).select('+password');
+  
+  if (!album) {
+    res.status(404);
+    throw new Error('Album not found');
+  }
+  
+  if (!album.isPasswordProtected) {
+    res.json({ 
+      success: true,
+      message: 'This album is not password protected',
+      album
+    });
+    return;
+  }
+  
+  if (!password) {
+    res.status(401).json({ 
+      success: false,
+      message: 'Password is required'
+    });
+    return;
+  }
+  
+  const isMatch = album.password && await bcrypt.compare(password, album.password);
+  
+  if (isMatch) {
+    res.json({ 
+      success: true,
+      message: 'Password verified successfully',
+      album
+    });
+  } else {
+    res.status(401).json({
+      success: false,
+      message: 'Invalid password'
+    });
   }
 });
 

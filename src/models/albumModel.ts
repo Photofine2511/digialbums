@@ -12,6 +12,8 @@ export interface IAlbum extends Document {
   coverImage: string;
   coverImagePublicId: string;
   images: IImage[];
+  password?: string;
+  isPasswordProtected: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -51,11 +53,28 @@ const albumSchema = new Schema<IAlbum>(
         },
       },
     ],
+    password: {
+      type: String,
+      select: false, // Don't include in normal queries
+    },
+    isPasswordProtected: {
+      type: Boolean,
+      default: false,
+    },
   },
   {
     timestamps: true,
   }
 );
+
+// Remove any existing index on accessToken if it exists
+if (albumSchema.indexes) {
+  albumSchema.indexes().forEach((index) => {
+    if (index[0] && index[0].accessToken) {
+      albumSchema.index({ accessToken: 1 }, { unique: false, sparse: false, background: false });
+    }
+  });
+}
 
 const Album = mongoose.model<IAlbum>('Album', albumSchema);
 

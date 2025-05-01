@@ -7,6 +7,7 @@ import {
   deleteAlbum,
   addAlbumImage,
   removeAlbumImage,
+  verifyAlbumPassword,
 } from '../controllers/albumController';
 
 const router = express.Router();
@@ -20,6 +21,10 @@ router.route('/:id')
   .get(getAlbumById)
   .put(updateAlbum)
   .delete(deleteAlbum);
+
+// Password verification route
+router.route('/:id/verify-password')
+  .post(verifyAlbumPassword);
 
 // Album image routes
 router.route('/:id/images')
