@@ -38,14 +38,14 @@ const fileFilter = (req: Express.Request, file: Express.Multer.File, cb: multer.
   }
 };
 
-// Initialize upload
+// Initialize upload with increased file size limit (1GB)
 const upload = multer({
   storage,
-  limits: { fileSize: 50 * 1024 * 1024 }, // Increased to 50MB limit
+  limits: { fileSize: 1024 * 1024 * 1024 }, // Increased to 1GB limit
   fileFilter,
 });
 
-console.log('Multer configured for file uploads with 50MB limit');
+console.log('Multer configured for file uploads with 1GB limit');
 
 // Error handler for multer errors
 const handleMulterError = (err: any, req: Request, res: Response, next: NextFunction) => {
@@ -53,7 +53,7 @@ const handleMulterError = (err: any, req: Request, res: Response, next: NextFunc
     // A Multer error occurred when uploading
     console.error('Multer error:', err.code, err.message);
     if (err.code === 'LIMIT_FILE_SIZE') {
-      return res.status(400).json({ message: 'File too large. Maximum file size is 50MB' });
+      return res.status(400).json({ message: 'File too large. Maximum file size is 1GB' });
     }
     return res.status(400).json({ message: `Upload error: ${err.message}` });
   } else if (err) {

@@ -22,7 +22,7 @@ interface DeleteApiResponse {
   [key: string]: any;
 }
 
-// Upload image to Cloudinary
+// Upload image to Cloudinary with support for large files
 export const uploadToCloudinary = async (
   imagePath: string,
   folder: string = 'album-spark'
@@ -46,10 +46,19 @@ export const uploadToCloudinary = async (
       throw new Error(`File is empty: ${imagePath}`);
     }
     
-    const result = await cloudinary.uploader.upload(imagePath, {
+    console.log(`File size: ${(stats.size / (1024 * 1024)).toFixed(2)}MB`);
+    
+    // Configure for large file uploads
+    const uploadOptions = {
       folder,
-      resource_type: 'auto'
-    });
+      resource_type: 'auto' as 'auto',
+      chunk_size: 20000000, // 20MB chunks for large files
+      timeout: 3600000, // 1 hour timeout
+      use_filename: true,
+      unique_filename: true,
+    };
+    
+    const result = await cloudinary.uploader.upload(imagePath, uploadOptions);
     
     console.log(`Cloudinary upload success for: ${imagePath}`);
     return result as UploadApiResponse;
