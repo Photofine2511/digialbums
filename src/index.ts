@@ -19,8 +19,13 @@ cloudinaryConfig();
 const app: Express = express();
 const PORT = process.env.PORT || 5000;
 
+const allowedOrigins = [
+  'https://f-digialbums.vercel.app', // your frontend live domain
+  'http://localhost:8080',           // your local frontend (optional)
+];
+
 // Middlewares
-app.use(cors({ origin: "https://f-digialbums.vercel.app" }));
+app.use(cors({ origin: allowedOrigins }));
 // Increase limits for large file uploads (1GB)
 app.use(express.json({ limit: '1024mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1024mb' }));
