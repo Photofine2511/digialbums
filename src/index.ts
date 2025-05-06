@@ -20,7 +20,7 @@ const app: Express = express();
 const PORT = process.env.PORT || 5000;
 
 // Middlewares
-app.use(cors({ origin: "*" }));
+app.use(cors({ origin: "https://f-digialbums.vercel.app" }));
 // Increase limits for large file uploads (1GB)
 app.use(express.json({ limit: '1024mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1024mb' }));
